@@ -15,6 +15,10 @@ var React;
 var ReactDOM;
 var ReactTestUtils;
 
+function normalizeCodeLocInfo(str) {
+  return str.replace(/\(at .+?:\d+\)/g, '(at **)');
+}
+
 describe('ReactComponent', function() {
   beforeEach(function() {
     React = require('React');
@@ -43,6 +47,32 @@ describe('ReactComponent', function() {
     expect(function() {
       instance = ReactTestUtils.renderIntoDocument(instance);
     }).toThrow();
+  });
+
+  it('should warn when children are mutated before render', function() {
+    spyOn(console, 'error');
+    var children = [<span key={0} />, <span key={1} />, <span key={2} />];
+    var element = <div>{children}</div>;
+    children[1] = <p key={1} />; // Mutation is illegal
+    ReactTestUtils.renderIntoDocument(element);
+    expect(console.error.calls.count()).toBe(1);
+    expect(normalizeCodeLocInfo(console.error.calls.argsFor(0)[0])).toBe(
+      'Warning: Component\'s children should not be mutated.\n    in div (at **)'
+    );
+  });
+
+  it('should warn when children are mutated', function() {
+    spyOn(console, 'error');
+    var children = [<span key={0} />, <span key={1} />, <span key={2} />];
+    function Wrapper(props) {
+      props.children[1] = <p key={1} />; // Mutation is illegal
+      return <div>{props.children}</div>;
+    }
+    ReactTestUtils.renderIntoDocument(<Wrapper>{children}</Wrapper>);
+    expect(console.error.calls.count()).toBe(1);
+    expect(normalizeCodeLocInfo(console.error.calls.argsFor(0)[0])).toBe(
+      'Warning: Component\'s children should not be mutated.\n    in Wrapper (at **)'
+    );
   });
 
   it('should support refs on owned components', function() {
@@ -280,14 +310,8 @@ describe('ReactComponent', function() {
       'or a class/function (for composite components) but got: null.'
     );
 
-    var Z = {};
-    expect(() => ReactTestUtils.renderIntoDocument(<Z />)).toThrowError(
-      'Element type is invalid: expected a string (for built-in components) ' +
-      'or a class/function (for composite components) but got: object.'
-    );
-
     // One warning for each element creation
-    expect(console.error.calls.count()).toBe(3);
+    expect(console.error.calls.count()).toBe(2);
   });
 
 });
