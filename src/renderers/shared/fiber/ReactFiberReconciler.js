@@ -13,135 +13,179 @@
 'use strict';
 
 import type { Fiber } from 'ReactFiber';
-var ReactFiber = require('ReactFiber');
-var { beginWork } = require('ReactFiberBeginWork');
-var { completeWork } = require('ReactFiberCompleteWork');
+import type { FiberRoot } from 'ReactFiberRoot';
+import type { PriorityLevel } from 'ReactPriorityLevel';
+import type { ReactNodeList } from 'ReactTypes';
 
-type ReactHostElement<T, P> = {
-  type: T,
-  props: P
-};
+var {
+  addTopLevelUpdate,
+} = require('ReactFiberUpdateQueue');
 
-type Deadline = {
+var {
+  findCurrentUnmaskedContext,
+  isContextProvider,
+  processChildContext,
+} = require('ReactFiberContext');
+var { createFiberRoot } = require('ReactFiberRoot');
+var ReactFiberScheduler = require('ReactFiberScheduler');
+
+if (__DEV__) {
+  var ReactFiberInstrumentation = require('ReactFiberInstrumentation');
+}
+
+var { findCurrentHostFiber } = require('ReactFiberTreeReflection');
+
+var getContextForSubtree = require('getContextForSubtree');
+
+export type Deadline = {
   timeRemaining : () => number
 };
 
-var timeHeuristicForUnitOfWork = 1;
+type OpaqueNode = Fiber;
 
-export type HostConfig<T, P, I> = {
+export type HostConfig<T, P, I, TI, C, CX, CI> = {
 
-  createHostInstance(element : ReactHostElement<T, P>) : I,
-  scheduleHighPriCallback(callback : () => void) : void,
-  scheduleLowPriCallback(callback : (deadline : Deadline) => void) : void
+  getRootHostContext(rootContainerInstance : C) : CX,
+  getChildHostContext(parentHostContext : CX, type : T) : CX,
 
+  createInstance(type : T, props : P, rootContainerInstance : C, hostContext : CX, internalInstanceHandle : OpaqueNode) : I,
+  appendInitialChild(parentInstance : I, child : I | TI) : void,
+  finalizeInitialChildren(parentInstance : I, type : T, props : P, rootContainerInstance : C) : boolean,
+
+  prepareUpdate(instance : I, type : T, oldProps : P, newProps : P, hostContext : CX) : boolean,
+  commitUpdate(instance : I, type : T, oldProps : P, newProps : P, rootContainerInstance : C, internalInstanceHandle : OpaqueNode) : void,
+  commitMount(instance : I, type : T, newProps : P, rootContainerInstance : C, internalInstanceHandle : OpaqueNode) : void,
+
+  shouldSetTextContent(props : P) : boolean,
+  resetTextContent(instance : I) : void,
+
+  createTextInstance(text : string, rootContainerInstance : C, hostContext : CX, internalInstanceHandle : OpaqueNode) : TI,
+  commitTextUpdate(textInstance : TI, oldText : string, newText : string) : void,
+
+  appendChild(parentInstance : I | C, child : I | TI) : void,
+  insertBefore(parentInstance : I | C, child : I | TI, beforeChild : I | TI) : void,
+  removeChild(parentInstance : I | C, child : I | TI) : void,
+
+  scheduleAnimationCallback(callback : () => void) : void,
+  scheduleDeferredCallback(callback : (deadline : Deadline) => void) : void,
+
+  prepareForCommit() : CI,
+  resetAfterCommit(commitInfo : CI) : void,
+
+  useSyncScheduling ?: boolean,
 };
 
-type OpaqueID = {};
+export type Reconciler<C, I, TI> = {
+  createContainer(containerInfo : C) : OpaqueNode,
+  updateContainer(element : ReactNodeList, container : OpaqueNode, parentComponent : ?ReactComponent<any, any, any>) : void,
+  performWithPriority(priorityLevel : PriorityLevel, fn : Function) : void,
+  /* eslint-disable no-undef */
+  // FIXME: ESLint complains about type parameter
+  batchedUpdates<A>(fn : () => A) : A,
+  unbatchedUpdates<A>(fn : () => A) : A,
+  syncUpdates<A>(fn : () => A) : A,
+  deferredUpdates<A>(fn : () => A) : A,
+  /* eslint-enable no-undef */
 
-export type Reconciler = {
-  mountNewRoot(element : ReactElement<any>) : OpaqueID;
+  // Used to extract the return value from the initial render. Legacy API.
+  getPublicRootInstance(container : OpaqueNode) : (ReactComponent<any, any, any> | TI | I | null),
+
+  // Use for findDOMNode/findHostNode. Legacy API.
+  findHostInstance(component : Fiber) : I | TI | null,
 };
 
-module.exports = function<T, P, I>(config : HostConfig<T, P, I>) : Reconciler {
+getContextForSubtree._injectFiber(function(fiber : Fiber) {
+  const parentContext = findCurrentUnmaskedContext(fiber);
+  return isContextProvider(fiber) ?
+    processChildContext(fiber, parentContext, false) :
+    parentContext;
+});
 
-  // const scheduleHighPriCallback = config.scheduleHighPriCallback;
-  const scheduleLowPriCallback = config.scheduleLowPriCallback;
+module.exports = function<T, P, I, TI, C, CX, CI>(config : HostConfig<T, P, I, TI, C, CX, CI>) : Reconciler<C, I, TI> {
 
-  let nextUnitOfWork : ?Fiber = null;
+  var {
+    scheduleUpdate,
+    getPriorityContext,
+    performWithPriority,
+    batchedUpdates,
+    unbatchedUpdates,
+    syncUpdates,
+    deferredUpdates,
+  } = ReactFiberScheduler(config);
 
-  function completeUnitOfWork(workInProgress : Fiber) : ?Fiber {
-    while (true) {
-      // The current, flushed, state of this fiber is the alternate.
-      // Ideally nothing should rely on this, but relying on it here
-      // means that we don't need an additional field on the work in
-      // progress.
-      const current = workInProgress.alternate;
-      const next = completeWork(current, workInProgress);
-      if (next) {
-        // If completing this work spawned new work, do that next.
-        return next;
-      } else if (workInProgress.sibling) {
-        // If there is more work to do in this parent, do that next.
-        return workInProgress.sibling;
-      } else if (workInProgress.parent) {
-        // If there's no more work in this parent. Complete the parent.
-        // TODO: Stop using the parent for this purpose. I think this will break
-        // down in edge cases because when nodes are reused during bailouts, we
-        // don't know which of two parents was used. Instead we should maintain
-        // a temporary manual stack.
-        // $FlowFixMe: This downcast is not safe. It is intentionally an error.
-        workInProgress = workInProgress.parent;
-      } else {
-        // If we're at the root, there's no more work to do.
-        return null;
-      }
-    }
+  function scheduleTopLevelUpdate(current : Fiber, element : ReactNodeList, callback : ?Function) {
+    const priorityLevel = getPriorityContext();
+    const nextState = { element };
+    addTopLevelUpdate(current, nextState, callback || null, priorityLevel);
+    scheduleUpdate(current, priorityLevel);
   }
-
-  function performUnitOfWork(workInProgress : Fiber) : ?Fiber {
-    // The current, flushed, state of this fiber is the alternate.
-    // Ideally nothing should rely on this, but relying on it here
-    // means that we don't need an additional field on the work in
-    // progress.
-    const current = workInProgress.alternate;
-    const next = beginWork(current, workInProgress);
-    if (next) {
-      // If this spawns new work, do that next.
-      return next;
-    } else {
-      // Otherwise, complete the current work.
-      return completeUnitOfWork(workInProgress);
-    }
-  }
-
-  function performLowPriWork(deadline : Deadline) {
-    while (nextUnitOfWork) {
-      if (deadline.timeRemaining() > timeHeuristicForUnitOfWork) {
-        nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
-      } else {
-        scheduleLowPriCallback(performLowPriWork);
-        break;
-      }
-    }
-  }
-
-  function ensureLowPriIsScheduled() {
-    if (nextUnitOfWork) {
-      return;
-    }
-    scheduleLowPriCallback(performLowPriWork);
-  }
-
-  /*
-  function performHighPriWork() {
-    // There is no such thing as high pri work yet.
-  }
-
-  function ensureHighPriIsScheduled() {
-    scheduleHighPriCallback(performHighPriWork);
-  }
-  */
-
-  let rootFiber : ?Fiber = null;
 
   return {
 
-    mountNewRoot(element : ReactElement<any>) : OpaqueID {
+    createContainer(containerInfo : C) : OpaqueNode {
+      const root = createFiberRoot(containerInfo);
+      const current = root.current;
 
-      ensureLowPriIsScheduled();
+      // It may seem strange that we don't return the root here, but that will
+      // allow us to have containers that are in the middle of the tree instead
+      // of being roots.
+      return current;
+    },
 
-      // TODO: Unify this with ReactChildFiber. We can't now because the parent
-      // is passed. Should be doable though. Might require a wrapper don't know.
-      if (rootFiber && rootFiber.type === element.type && rootFiber.key === element.key) {
-        nextUnitOfWork = ReactFiber.cloneFiber(rootFiber);
-        nextUnitOfWork.input = element.props;
-        return {};
+    updateContainer(element : ReactNodeList, container : OpaqueNode, parentComponent : ?ReactComponent<any, any, any>, callback: ?Function) : void {
+      // TODO: If this is a nested container, this won't be the root.
+      const root : FiberRoot = (container.stateNode : any);
+      const current = root.current;
+
+      if (__DEV__) {
+        if (ReactFiberInstrumentation.debugTool) {
+          if (current.alternate === null) {
+            ReactFiberInstrumentation.debugTool.onMountContainer(root);
+          } else if (element === null) {
+            ReactFiberInstrumentation.debugTool.onUnmountContainer(root);
+          } else {
+            ReactFiberInstrumentation.debugTool.onUpdateContainer(root);
+          }
+        }
       }
 
-      nextUnitOfWork = rootFiber = ReactFiber.createFiberFromElement(element);
+      const context = getContextForSubtree(parentComponent);
+      if (root.context === null) {
+        root.context = context;
+      } else {
+        root.pendingContext = context;
+      }
 
-      return {};
+      scheduleTopLevelUpdate(current, element, callback);
+    },
+
+    performWithPriority,
+
+    batchedUpdates,
+
+    unbatchedUpdates,
+
+    syncUpdates,
+
+    deferredUpdates,
+
+    getPublicRootInstance(container : OpaqueNode) : (ReactComponent<any, any, any> | I | TI | null) {
+      const root : FiberRoot = (container.stateNode : any);
+      const containerFiber = root.current;
+      if (!containerFiber.child) {
+        return null;
+      }
+      return containerFiber.child.stateNode;
+    },
+
+    findHostInstance(fiber : Fiber) : I | TI | null {
+      const hostFiber = findCurrentHostFiber(fiber);
+      if (!hostFiber) {
+        return null;
+      }
+      return hostFiber.stateNode;
     },
 
   };
+
 };

@@ -20,9 +20,9 @@ var TestComponentWithReverseSpec;
 var mixinPropValidator;
 var componentPropValidator;
 
-describe('ReactClass-mixin', function() {
+describe('ReactClass-mixin', () => {
 
-  beforeEach(function() {
+  beforeEach(() => {
     React = require('React');
     ReactTestUtils = require('ReactTestUtils');
     mixinPropValidator = jest.fn();
@@ -106,7 +106,7 @@ describe('ReactClass-mixin', function() {
     });
   });
 
-  it('should support merging propTypes and statics', function() {
+  it('should support merging propTypes and statics', () => {
     var listener = jest.fn();
     var instance = <TestComponent listener={listener} />;
     instance = ReactTestUtils.renderIntoDocument(instance);
@@ -121,10 +121,10 @@ describe('ReactClass-mixin', function() {
     expect('staticComponent' in TestComponent).toBe(true);
   });
 
-  it('should support chaining delegate functions', function() {
+  it('should support chaining delegate functions', () => {
     var listener = jest.fn();
     var instance = <TestComponent listener={listener} />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    ReactTestUtils.renderIntoDocument(instance);
 
     expect(listener.mock.calls).toEqual([
       ['MixinA didMount'],
@@ -134,10 +134,10 @@ describe('ReactClass-mixin', function() {
     ]);
   });
 
-  it('should chain functions regardless of spec property order', function() {
+  it('should chain functions regardless of spec property order', () => {
     var listener = jest.fn();
     var instance = <TestComponentWithReverseSpec listener={listener} />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    ReactTestUtils.renderIntoDocument(instance);
 
     expect(listener.mock.calls).toEqual([
       ['MixinA didMount'],
@@ -147,13 +147,13 @@ describe('ReactClass-mixin', function() {
     ]);
   });
 
-  it('should validate prop types via mixins', function() {
+  it('should validate prop types via mixins', () => {
     expect(TestComponent.propTypes).toBeDefined();
     expect(TestComponent.propTypes.value)
       .toBe(mixinPropValidator);
   });
 
-  it('should override mixin prop types with class prop types', function() {
+  it('should override mixin prop types with class prop types', () => {
     // Sanity check...
     expect(componentPropValidator).not.toBe(mixinPropValidator);
     // Actually check...
@@ -166,7 +166,7 @@ describe('ReactClass-mixin', function() {
   });
 
 
-  it('should support mixins with getInitialState()', function() {
+  it('should support mixins with getInitialState()', () => {
     var Mixin = {
       getInitialState: function() {
         return {mixin: true};
@@ -181,13 +181,12 @@ describe('ReactClass-mixin', function() {
         return <span />;
       },
     });
-    var instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    var instance = ReactTestUtils.renderIntoDocument(<Component />);
     expect(instance.state.component).toBe(true);
     expect(instance.state.mixin).toBe(true);
   });
 
-  it('should throw with conflicting getInitialState() methods', function() {
+  it('should throw with conflicting getInitialState() methods', () => {
     var Mixin = {
       getInitialState: function() {
         return {x: true};
@@ -202,9 +201,8 @@ describe('ReactClass-mixin', function() {
         return <span />;
       },
     });
-    var instance = <Component />;
     expect(function() {
-      instance = ReactTestUtils.renderIntoDocument(instance);
+      ReactTestUtils.renderIntoDocument(<Component />);
     }).toThrowError(
       'mergeIntoWithNoDuplicateKeys(): Tried to merge two objects with the ' +
       'same key: `x`. This conflict may be due to a mixin; in particular, ' +
@@ -213,7 +211,7 @@ describe('ReactClass-mixin', function() {
     );
   });
 
-  it('should not mutate objects returned by getInitialState()', function() {
+  it('should not mutate objects returned by getInitialState()', () => {
     var Mixin = {
       getInitialState: function() {
         return Object.freeze({mixin: true});
@@ -233,7 +231,7 @@ describe('ReactClass-mixin', function() {
     }).not.toThrow();
   });
 
-  it('should support statics in mixins', function() {
+  it('should support statics in mixins', () => {
     var Mixin = {
       statics: {
         foo: 'bar',
@@ -258,7 +256,7 @@ describe('ReactClass-mixin', function() {
     expect(Component.abc).toBe('def');
   });
 
-  it("should throw if mixins override each others' statics", function() {
+  it("should throw if mixins override each others' statics", () => {
     expect(function() {
       var Mixin = {
         statics: {
@@ -282,7 +280,7 @@ describe('ReactClass-mixin', function() {
     );
   });
 
-  it('should throw if mixins override functions in statics', function() {
+  it('should throw if mixins override functions in statics', () => {
     expect(function() {
       var Mixin = {
         statics: {
@@ -310,7 +308,95 @@ describe('ReactClass-mixin', function() {
     );
   });
 
-  it('should throw if the mixin is a React component', function() {
+  it('should warn if the mixin is undefined', () => {
+    spyOn(console, 'error');
+
+    React.createClass({
+      mixins: [undefined],
+
+      render: function() {
+        return <span />;
+      },
+    });
+
+    expectDev(console.error.calls.count()).toBe(1);
+    expectDev(console.error.calls.argsFor(0)[0]).toBe(
+      'Warning: ReactClass: You\'re attempting to include a mixin that is ' +
+      'either null or not an object. Check the mixins included by the ' +
+      'component, as well as any mixins they include themselves. ' +
+      'Expected object but got undefined.'
+    );
+  });
+
+  it('should warn if the mixin is null', () => {
+    spyOn(console, 'error');
+
+    React.createClass({
+      mixins: [null],
+
+      render: function() {
+        return <span />;
+      },
+    });
+
+    expectDev(console.error.calls.count()).toBe(1);
+    expectDev(console.error.calls.argsFor(0)[0]).toBe(
+      'Warning: ReactClass: You\'re attempting to include a mixin that is ' +
+      'either null or not an object. Check the mixins included by the ' +
+      'component, as well as any mixins they include themselves. ' +
+      'Expected object but got null.'
+    );
+  });
+
+  it('should warn if an undefined mixin is included in another mixin', () => {
+    spyOn(console, 'error');
+
+    var mixinA = {
+      mixins: [undefined],
+    };
+
+    React.createClass({
+      mixins: [mixinA],
+
+      render: function() {
+        return <span />;
+      },
+    });
+
+    expectDev(console.error.calls.count()).toBe(1);
+    expectDev(console.error.calls.argsFor(0)[0]).toBe(
+      'Warning: ReactClass: You\'re attempting to include a mixin that is ' +
+      'either null or not an object. Check the mixins included by the ' +
+      'component, as well as any mixins they include themselves. ' +
+      'Expected object but got undefined.'
+    );
+  });
+
+  it('should warn if a null mixin is included in another mixin', () => {
+    spyOn(console, 'error');
+
+    var mixinA = {
+      mixins: [null],
+    };
+
+    React.createClass({
+      mixins: [mixinA],
+
+      render: function() {
+        return <span />;
+      },
+    });
+
+    expectDev(console.error.calls.count()).toBe(1);
+    expectDev(console.error.calls.argsFor(0)[0]).toBe(
+      'Warning: ReactClass: You\'re attempting to include a mixin that is ' +
+      'either null or not an object. Check the mixins included by the ' +
+      'component, as well as any mixins they include themselves. ' +
+      'Expected object but got null.'
+    );
+  });
+
+  it('should throw if the mixin is a React component', () => {
     expect(function() {
       React.createClass({
         mixins: [<div />],
@@ -325,7 +411,7 @@ describe('ReactClass-mixin', function() {
     );
   });
 
-  it('should throw if the mixin is a React component class', function() {
+  it('should throw if the mixin is a React component class', () => {
     expect(function() {
       var Component = React.createClass({
         render: function() {
@@ -346,7 +432,7 @@ describe('ReactClass-mixin', function() {
     );
   });
 
-  it('should have bound the mixin methods to the component', function() {
+  it('should have bound the mixin methods to the component', () => {
     var mixin = {
       mixinFunc: function() {
         return this;
@@ -362,11 +448,10 @@ describe('ReactClass-mixin', function() {
         return <span />;
       },
     });
-    var instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    ReactTestUtils.renderIntoDocument(<Component />);
   });
 
-  it('should include the mixin keys in even if their values are falsy', function() {
+  it('should include the mixin keys in even if their values are falsy', () => {
     var mixin = {
       keyWithNullValue: null,
       randomCounter: 0,
@@ -382,8 +467,7 @@ describe('ReactClass-mixin', function() {
         return <span />;
       },
     });
-    var instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    ReactTestUtils.renderIntoDocument(<Component />);
   });
 
   it('should work with a null getInitialState return value and a mixin', () => {
@@ -408,8 +492,7 @@ describe('ReactClass-mixin', function() {
       () => ReactTestUtils.renderIntoDocument(<Component />)
     ).not.toThrow();
 
-    instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    instance = ReactTestUtils.renderIntoDocument(<Component />);
     expect(instance.state).toEqual({foo: 'bar'});
 
     // Also the other way round should work
@@ -431,8 +514,7 @@ describe('ReactClass-mixin', function() {
       () => ReactTestUtils.renderIntoDocument(<Component />)
     ).not.toThrow();
 
-    instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    instance = ReactTestUtils.renderIntoDocument(<Component />);
     expect(instance.state).toEqual({foo: 'bar'});
 
     // Multiple mixins should be fine too
@@ -449,8 +531,7 @@ describe('ReactClass-mixin', function() {
       () => ReactTestUtils.renderIntoDocument(<Component />)
     ).not.toThrow();
 
-    instance = <Component />;
-    instance = ReactTestUtils.renderIntoDocument(instance);
+    instance = ReactTestUtils.renderIntoDocument(<Component />);
     expect(instance.state).toEqual({foo: 'bar', x: true});
   });
 

@@ -14,28 +14,29 @@
 'use strict';
 
 var ReactDOMComponentTree = require('ReactDOMComponentTree');
-var ReactDefaultInjection = require('ReactDefaultInjection');
+var ReactDOMInjection = require('ReactDOMInjection');
+var ReactDOMStackInjection = require('ReactDOMStackInjection');
+var ReactGenericBatching = require('ReactGenericBatching');
 var ReactMount = require('ReactMount');
 var ReactReconciler = require('ReactReconciler');
-var ReactUpdates = require('ReactUpdates');
 var ReactVersion = require('ReactVersion');
 
 var findDOMNode = require('findDOMNode');
 var getHostComponentFromComposite = require('getHostComponentFromComposite');
-var renderSubtreeIntoContainer = require('renderSubtreeIntoContainer');
 var warning = require('warning');
 
-ReactDefaultInjection.inject();
+ReactDOMInjection.inject();
+ReactDOMStackInjection.inject();
 
-var React = {
+var ReactDOM = {
   findDOMNode: findDOMNode,
   render: ReactMount.render,
   unmountComponentAtNode: ReactMount.unmountComponentAtNode,
   version: ReactVersion,
 
   /* eslint-disable camelcase */
-  unstable_batchedUpdates: ReactUpdates.batchedUpdates,
-  unstable_renderSubtreeIntoContainer: renderSubtreeIntoContainer,
+  unstable_batchedUpdates: ReactGenericBatching.batchedUpdates,
+  unstable_renderSubtreeIntoContainer: ReactMount.renderSubtreeIntoContainer,
   /* eslint-enable camelcase */
 };
 
@@ -118,7 +119,6 @@ if (__DEV__) {
       Date.now,
       Function.prototype.bind,
       Object.keys,
-      String.prototype.split,
       String.prototype.trim,
     ];
 
@@ -135,4 +135,15 @@ if (__DEV__) {
   }
 }
 
-module.exports = React;
+if (__DEV__) {
+  var ReactInstrumentation = require('ReactInstrumentation');
+  var ReactDOMUnknownPropertyHook = require('ReactDOMUnknownPropertyHook');
+  var ReactDOMNullInputValuePropHook = require('ReactDOMNullInputValuePropHook');
+  var ReactDOMInvalidARIAHook = require('ReactDOMInvalidARIAHook');
+
+  ReactInstrumentation.debugTool.addHook(ReactDOMUnknownPropertyHook);
+  ReactInstrumentation.debugTool.addHook(ReactDOMNullInputValuePropHook);
+  ReactInstrumentation.debugTool.addHook(ReactDOMInvalidARIAHook);
+}
+
+module.exports = ReactDOM;
