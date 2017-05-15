@@ -18,6 +18,8 @@ var ReactFeatureFlags = {
   // timeline profiles in Chrome, for example.
   logTopLevelRenders: false,
   prepareNewChildrenBeforeUnmountInStack: true,
+  disableNewFiberFeatures: false,
+  enableAsyncSubtreeAPI: false,
 };
 
 module.exports = ReactFeatureFlags;

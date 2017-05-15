@@ -71,7 +71,7 @@ function WarningButton() {
 }
 ```
 
-If you don't use a JavaScript bundler and added React as a script tag, it is already in scope as a `React` global.
+If you don't use a JavaScript bundler and loaded React from a `<script>` tag, it is already in scope as the `React` global.
 
 ### Using Dot Notation for JSX Type
 
@@ -152,7 +152,7 @@ function Story(props) {
 
 To fix this, we will assign the type to a capitalized variable first:
 
-```js{9-11}
+```js{10-12}
 import React from 'react';
 import { PhotoStory, VideoStory } from './stories';
 
@@ -172,7 +172,7 @@ function Story(props) {
 
 There are several different ways to specify props in JSX.
 
-### JavaScript Expressions
+### JavaScript Expressions as Props
 
 You can pass any JavaScript expression as a prop, by surrounding it with `{}`. For example, in this JSX:
 
@@ -195,6 +195,8 @@ function NumberDescriber(props) {
   return <div>{props.number} is an {description} number</div>;
 }
 ```
+
+You can learn more about [conditional rendering](/react/docs/conditional-rendering.html) and [loops](/react/docs/lists-and-keys.html) in the corresponding sections.
 
 ### String Literals
 
@@ -308,7 +310,7 @@ You can mix together different types of children, so you can use string literals
 
 A React component can't return multiple React elements, but a single JSX expression can have multiple children, so if you want a component to render multiple things you can wrap it in a `div` like this.
 
-### JavaScript Expressions
+### JavaScript Expressions as Children
 
 You can pass any JavaScript expression as children, by enclosing it within `{}`. For example, these expressions are equivalent:
 
@@ -348,14 +350,6 @@ function Hello(props) {
 Normally, JavaScript expressions inserted in JSX will evaluate to a string, a React element, or a list of those things. However, `props.children` works just like any other prop in that it can pass any sort of data, not just the sorts that React knows how to render. For example, if you have a custom component, you could have it take a callback as `props.children`:
 
 ```js{4,13}
-function ListOfTenThings() {
-  return (
-    <Repeat numTimes={10}>
-      {(index) => <div key={index}>This is item {index} in the list</div>}
-    </Repeat>
-  );
-}
-
 // Calls the children callback numTimes to produce a repeated component
 function Repeat(props) {
   let items = [];
@@ -363,6 +357,14 @@ function Repeat(props) {
     items.push(props.children(i));
   }
   return <div>{items}</div>;
+}
+
+function ListOfTenThings() {
+  return (
+    <Repeat numTimes={10}>
+      {(index) => <div key={index}>This is item {index} in the list</div>}
+    </Repeat>
+  );
 }
 ```
 
@@ -380,6 +382,8 @@ Children passed to a custom component can be anything, as long as that component
 <div>{false}</div>
 
 <div>{null}</div>
+
+<div>{undefined}</div>
 
 <div>{true}</div>
 ```

@@ -64,15 +64,16 @@ class CommentList extends React.Component {
         ))}
       </div>
     );
-  }}
+  }
+}
 ```
 
 Later, you write a component for subscribing to a single blog post, which follows a similar pattern:
 
 ```js
 class BlogPost extends React.Component {
-  constructor() {
-    super();
+  constructor(props) {
+    super(props);
     this.handleChange = this.handleChange.bind(this);
     this.state = {
       blogPost: DataSource.getBlogPost(props.id)
@@ -94,8 +95,9 @@ class BlogPost extends React.Component {
   }
 
   render() {
-    return <BlogPost blogPost={this.state.blogPost} />;
-  }}
+    return <TextBlock text={this.state.blogPost} />;
+  }
+}
 ```
 
 `CommentList` and `BlogPost` aren't identical — they call different methods on `DataSource`, and they render different output. But much of their implementation is the same:
@@ -157,7 +159,7 @@ function withSubscription(WrappedComponent, selectData) {
       // Notice that we pass through any additional props
       return <WrappedComponent data={this.state.data} {...this.props} />;
     }
-  });
+  };
 }
 ```
 
