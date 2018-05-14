@@ -1,6 +1,6 @@
 {
   "private": true,
-  "version": "16.3.1",
+  "version": "16.3.2",
   "workspaces": [
     "packages/*"
   ],
@@ -31,8 +31,6 @@
     "babel-plugin-transform-es2015-shorthand-properties": "^6.5.0",
     "babel-plugin-transform-es2015-spread": "^6.5.2",
     "babel-plugin-transform-es2015-template-literals": "^6.5.2",
-    "babel-plugin-transform-es3-member-expression-literals": "^6.5.0",
-    "babel-plugin-transform-es3-property-literals": "^6.5.0",
     "babel-plugin-transform-object-rest-spread": "^6.6.5",
     "babel-plugin-transform-react-jsx-source": "^6.8.0",
     "babel-plugin-transform-regenerator": "^6.26.0",
@@ -79,10 +77,10 @@
     "ncp": "^2.0.0",
     "object-assign": "^4.1.1",
     "platform": "^1.1.0",
-    "prettier": "1.8.1",
+    "prettier": "1.11.1",
     "prop-types": "^15.6.0",
     "random-seed": "^0.3.0",
-    "react-lifecycles-compat": "^1.0.2",
+    "react-lifecycles-compat": "^3.0.2",
     "rimraf": "^2.6.1",
     "rollup": "^0.52.1",
     "rollup-plugin-babel": "^3.0.1",
@@ -102,6 +100,9 @@
   },
   "devEngines": {
     "node": "8.x || 9.x"
+  },
+  "jest": {
+    "testRegex": "/scripts/jest/dont-run-jest-directly\\.js$"
   },
   "scripts": {
     "build": "npm run version-check && node ./scripts/rollup/build.js",

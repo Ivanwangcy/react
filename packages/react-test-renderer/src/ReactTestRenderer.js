@@ -27,6 +27,7 @@ import {
   ContextProvider,
   Mode,
   ForwardRef,
+  Profiler,
 } from 'shared/ReactTypeOfWork';
 import invariant from 'fbjs/lib/invariant';
 
@@ -119,7 +120,7 @@ function removeChild(
 }
 
 // Current virtual time
-let currentTime: number = 0;
+let nowImplementation = () => 0;
 let scheduledCallback: ((deadline: Deadline) => mixed) | null = null;
 let yieldedValues: Array<mixed> | null = null;
 
@@ -221,9 +222,11 @@ const TestRenderer = ReactFiberReconciler({
 
   getPublicInstance,
 
-  now(): number {
-    return currentTime;
-  },
+  // This approach enables `now` to be mocked by tests,
+  // Even after the reconciler has initialized and read host config values.
+  now: () => nowImplementation(),
+
+  isPrimaryRenderer: true,
 
   mutation: {
     commitUpdate(
@@ -383,6 +386,7 @@ function toTree(node: ?Fiber) {
     case ContextProvider:
     case ContextConsumer:
     case Mode:
+    case Profiler:
     case ForwardRef:
       return childrenToTree(node.child);
     default:
@@ -411,6 +415,7 @@ const validWrapperTypes = new Set([
   FunctionalComponent,
   ClassComponent,
   HostComponent,
+  ForwardRef,
 ]);
 
 class ReactTestInstance {
@@ -475,6 +480,7 @@ class ReactTestInstance {
         case FunctionalComponent:
         case ClassComponent:
         case HostComponent:
+        case ForwardRef:
           children.push(wrapFiber(node));
           break;
         case HostText:
@@ -484,7 +490,7 @@ class ReactTestInstance {
         case ContextProvider:
         case ContextConsumer:
         case Mode:
-        case ForwardRef:
+        case Profiler:
           descend = true;
           break;
         default:
@@ -736,6 +742,11 @@ const ReactTestRendererFiber = {
         }
         return TestRenderer.getPublicRootInstance(root);
       },
+      unstable_flushSync(fn: Function) {
+        yieldedValues = [];
+        TestRenderer.flushSync(fn);
+        return yieldedValues;
+      },
     };
 
     Object.defineProperty(
@@ -759,6 +770,10 @@ const ReactTestRendererFiber = {
   /* eslint-disable camelcase */
   unstable_batchedUpdates: batchedUpdates,
   /* eslint-enable camelcase */
+
+  unstable_setNowImplementation(implementation: () => number): void {
+    nowImplementation = implementation;
+  },
 };
 
 export default ReactTestRendererFiber;

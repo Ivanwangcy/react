@@ -15,7 +15,7 @@
  */
 
 import type {Fiber} from 'react-reconciler/src/ReactFiber';
-import type {UpdateQueue} from 'react-reconciler/src/ReactFiberUpdateQueue';
+import type {UpdateQueue} from 'react-reconciler/src/ReactUpdateQueue';
 import type {ReactNodeList} from 'shared/ReactTypes';
 import ReactFiberReconciler from 'react-reconciler';
 import {enablePersistentReconciler} from 'shared/ReactFeatureFlags';
@@ -185,6 +185,8 @@ let SharedHostConfig = {
   now(): number {
     return elapsedTimeInMs;
   },
+
+  isPrimaryRenderer: true,
 };
 
 const NoopRenderer = ReactFiberReconciler({
@@ -526,23 +528,15 @@ const ReactNoop = {
 
     function logUpdateQueue(updateQueue: UpdateQueue<mixed>, depth) {
       log('  '.repeat(depth + 1) + 'QUEUED UPDATES');
-      const firstUpdate = updateQueue.first;
+      const firstUpdate = updateQueue.firstUpdate;
       if (!firstUpdate) {
         return;
       }
 
-      log(
-        '  '.repeat(depth + 1) + '~',
-        firstUpdate && firstUpdate.partialState,
-        firstUpdate.callback ? 'with callback' : '',
-        '[' + firstUpdate.expirationTime + ']',
-      );
-      let next;
-      while ((next = firstUpdate.next)) {
+      log('  '.repeat(depth + 1) + '~', '[' + firstUpdate.expirationTime + ']');
+      while (firstUpdate.next) {
         log(
           '  '.repeat(depth + 1) + '~',
-          next.partialState,
-          next.callback ? 'with callback' : '',
           '[' + firstUpdate.expirationTime + ']',
         );
       }
