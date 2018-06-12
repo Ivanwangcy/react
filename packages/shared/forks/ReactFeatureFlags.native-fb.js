@@ -21,14 +21,11 @@ export const {
   warnAboutDeprecatedLifecycles,
   replayFailedUnitOfWorkWithInvokeGuardedCallback,
   enableProfilerTimer,
-  fireGetDerivedStateFromPropsOnStateUpdates,
 } = require('ReactFeatureFlags');
 
 // The rest of the flags are static for better dead code elimination.
 export const enableUserTimingAPI = __DEV__;
-export const enableMutatingReconciler = true;
-export const enableNoopReconciler = false;
-export const enablePersistentReconciler = false;
+export const warnAboutLegacyContextAPI = __DEV__;
 
 // Only used in www builds.
 export function addUserTimingListener() {

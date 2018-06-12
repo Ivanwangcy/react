@@ -7,10 +7,12 @@ const UMD_DEV = Bundles.bundleTypes.UMD_DEV;
 const UMD_PROD = Bundles.bundleTypes.UMD_PROD;
 const NODE_DEV = Bundles.bundleTypes.NODE_DEV;
 const NODE_PROD = Bundles.bundleTypes.NODE_PROD;
+const NODE_PROFILING = Bundles.bundleTypes.NODE_PROFILING;
 const FB_WWW_DEV = Bundles.bundleTypes.FB_WWW_DEV;
 const FB_WWW_PROD = Bundles.bundleTypes.FB_WWW_PROD;
 const RN_OSS_DEV = Bundles.bundleTypes.RN_OSS_DEV;
 const RN_OSS_PROD = Bundles.bundleTypes.RN_OSS_PROD;
+const RN_OSS_PROFILING = Bundles.bundleTypes.RN_OSS_PROFILING;
 const RN_FB_DEV = Bundles.bundleTypes.RN_FB_DEV;
 const RN_FB_PROD = Bundles.bundleTypes.RN_FB_PROD;
 
@@ -56,7 +58,8 @@ ${license}
 'use strict';
 
 ${
-      globalName === 'ReactNoopRenderer'
+      globalName === 'ReactNoopRenderer' ||
+      globalName === 'ReactNoopRendererPersistent'
         ? // React Noop needs regenerator runtime because it uses
           // generators but GCC doesn't handle them in the output.
           // So we use Babel for them.
@@ -79,7 +82,27 @@ ${source}
 ${license}
  */
 ${
-      globalName === 'ReactNoopRenderer'
+      globalName === 'ReactNoopRenderer' ||
+      globalName === 'ReactNoopRendererPersistent'
+        ? // React Noop needs regenerator runtime because it uses
+          // generators but GCC doesn't handle them in the output.
+          // So we use Babel for them.
+          `const regeneratorRuntime = require("regenerator-runtime");`
+        : ``
+    }
+${source}`;
+  },
+
+  /***************** NODE_PROFILING *****************/
+  [NODE_PROFILING](source, globalName, filename, moduleType) {
+    return `/** @license React v${reactVersion}
+ * ${filename}
+ *
+${license}
+ */
+${
+      globalName === 'ReactNoopRenderer' ||
+      globalName === 'ReactNoopRendererPersistent'
         ? // React Noop needs regenerator runtime because it uses
           // generators but GCC doesn't handle them in the output.
           // So we use Babel for them.
@@ -129,6 +152,7 @@ ${license}
  * @noflow
  * @providesModule ${globalName}-dev
  * @preventMunge
+ * ${'@gen' + 'erated'}
  */
 
 'use strict';
@@ -148,6 +172,21 @@ ${license}
  * @noflow
  * @providesModule ${globalName}-prod
  * @preventMunge
+ * ${'@gen' + 'erated'}
+ */
+
+${source}`;
+  },
+
+  /****************** RN_OSS_PROFILING ******************/
+  [RN_OSS_PROFILING](source, globalName, filename, moduleType) {
+    return `/**
+${license}
+ *
+ * @noflow
+ * @providesModule ${globalName}-profiling
+ * @preventMunge
+ * ${'@gen' + 'erated'}
  */
 
 ${source}`;
@@ -160,6 +199,7 @@ ${license}
  *
  * @noflow
  * @preventMunge
+ * ${'@gen' + 'erated'}
  */
 
 'use strict';
@@ -178,6 +218,7 @@ ${license}
  *
  * @noflow
  * @preventMunge
+ * ${'@gen' + 'erated'}
  */
 
 ${source}`;
@@ -196,14 +237,11 @@ ${license}
 'use strict';
 
 if (process.env.NODE_ENV !== "production") {
-  // This is a hacky way to ensure third party renderers don't share
-  // top-level module state inside the reconciler. Ideally we should
-  // remove this hack by putting all top-level state into the closures
-  // and then forbidding adding more of it in the reconciler.
-  var $$$reconciler;
-  module.exports = function(config) {
+  module.exports = function $$$reconciler($$$hostConfig) {
 ${source}
-    return ($$$reconciler || ($$$reconciler = module.exports))(config);
+    var $$$renderer = module.exports;
+    module.exports = $$$reconciler;
+    return $$$renderer;
   };
 }`;
   },
@@ -215,10 +253,11 @@ ${source}
  *
 ${license}
  */
-var $$$reconciler;
-module.exports = function(config) {
+module.exports = function $$$reconciler($$$hostConfig) {
 ${source}
-  return ($$$reconciler || ($$$reconciler = module.exports))(config);
+    var $$$renderer = module.exports;
+    module.exports = $$$reconciler;
+    return $$$renderer;
 };`;
   },
 };

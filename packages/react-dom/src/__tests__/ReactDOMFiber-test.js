@@ -171,6 +171,31 @@ describe('ReactDOMFiber', () => {
     expect(firstNode.tagName).toBe('DIV');
   });
 
+  it('renders an empty fragment', () => {
+    const Div = () => <div />;
+    const EmptyFragment = () => <React.Fragment />;
+    const NonEmptyFragment = () => (
+      <React.Fragment>
+        <Div />
+      </React.Fragment>
+    );
+
+    ReactDOM.render(<EmptyFragment />, container);
+    expect(container.firstChild).toBe(null);
+
+    ReactDOM.render(<NonEmptyFragment />, container);
+    expect(container.firstChild.tagName).toBe('DIV');
+
+    ReactDOM.render(<EmptyFragment />, container);
+    expect(container.firstChild).toBe(null);
+
+    ReactDOM.render(<Div />, container);
+    expect(container.firstChild.tagName).toBe('DIV');
+
+    ReactDOM.render(<EmptyFragment />, container);
+    expect(container.firstChild).toBe(null);
+  });
+
   let svgEls, htmlEls, mathEls;
   const expectSVG = {ref: el => svgEls.push(el)};
   const expectHTML = {ref: el => htmlEls.push(el)};
@@ -838,12 +863,7 @@ describe('ReactDOMFiber', () => {
 
     expect(portal.tagName).toBe('DIV');
 
-    const fakeNativeEvent = {};
-    ReactTestUtils.simulateNativeEventOnNode(
-      'topClick',
-      portal,
-      fakeNativeEvent,
-    );
+    ReactTestUtils.Simulate.click(portal);
 
     expect(ops).toEqual(['portal clicked', 'parent clicked']);
   });
@@ -858,14 +878,12 @@ describe('ReactDOMFiber', () => {
 
     function simulateMouseMove(from, to) {
       if (from) {
-        ReactTestUtils.simulateNativeEventOnNode('topMouseOut', from, {
-          target: from,
+        ReactTestUtils.SimulateNative.mouseOut(from, {
           relatedTarget: to,
         });
       }
       if (to) {
-        ReactTestUtils.simulateNativeEventOnNode('topMouseOver', to, {
-          target: to,
+        ReactTestUtils.SimulateNative.mouseOver(to, {
           relatedTarget: from,
         });
       }
@@ -983,12 +1001,7 @@ describe('ReactDOMFiber', () => {
     expect(node.tagName).toEqual('DIV');
 
     function click(target) {
-      const fakeNativeEvent = {};
-      ReactTestUtils.simulateNativeEventOnNode(
-        'topClick',
-        target,
-        fakeNativeEvent,
-      );
+      ReactTestUtils.Simulate.click(target);
     }
 
     click(node);
